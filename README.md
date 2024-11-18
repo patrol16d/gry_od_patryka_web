@@ -1,1 +1,0 @@
-# gry_od_patryka_web
