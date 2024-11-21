@@ -2,7 +2,7 @@ import { useEffect, useState, useContext } from 'react';
 import { UserContext } from './UserContext.tsx';
 import { onValue, set, update, get } from '../firebase.ts';
 import LobbyRTV from '../lobby/LobbyRTV.tsx';
-import MonopolyRTV from '../monopoly/game_board/MonopolyRTV.ts';
+import MonopolyRTV from '../monopoly/game_board/MonopolyRTV.tsx';
 
 let updateMyTimeRunning = false;
 

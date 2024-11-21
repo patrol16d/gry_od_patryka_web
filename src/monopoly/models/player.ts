@@ -17,4 +17,6 @@ export class PlayerModel {
         public money: number,
         public inJailFor: number,
     ) { };
+
+
 }

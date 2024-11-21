@@ -2,7 +2,7 @@ import { PlayerModel, playersColors } from "./player"
 
 type FieldType = 'start' | 'street' | 'card' | 'payment' | 'trainStop' | 'jail' | 'infrastructure' | 'parking' | 'goToJail'
 
-class Field {
+export class Field {
     buildingCount: number = 0
     isOff: boolean = false
     player: string = ''
@@ -94,7 +94,7 @@ export const fieldsTemplate: Field[] = [
     new Field('street', 'Aleje Ujazdowskie', 400, 7, [50, 200, 600, 1400, 1700, 2000], 200),
 ]
 
-function parseFieldsFromJson(data: any, playerData: { [name: string]: PlayerModel }): Field[] {
+export function parseFieldsFromJson(data: any, playerData: { [name: string]: PlayerModel }): Field[] {
     const fields: Field[] = fieldsTemplate;
 
     if (!Array.isArray(data) || data.length !== fields.length) {
