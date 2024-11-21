@@ -1,11 +1,11 @@
 import './App.css'
-import LobbyRTV from './lobby/LobbyRTV.tsx';
-import UserNameGate from './lobby/UserNameGate.tsx';
+import UserRTV from './user/UserRTV.tsx';
+import UserNameGate from './user/UserNameGate.tsx';
 
 function App() {
   return (
     <UserNameGate>
-      <LobbyRTV />
+      <UserRTV />
     </UserNameGate>
   )
 }

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+import * as fb from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,4 +13,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-export const db = getDatabase(app);
+const db = fb.getDatabase(app);
+
+export const set = async (path: string, value: any) => {
+  await fb.set(fb.ref(db, path), value);
+}
+
+export const update = async (path: string, value: object) => {
+  await fb.update(fb.ref(db, path), value);
+}
+
+export const onValue = (path: string, callback: (snapshot: fb.DataSnapshot) => unknown, cancelCallback?: (error: Error) => unknown) => {
+  return fb.onValue(fb.ref(db, path), callback, cancelCallback);
+}
+
+export const get = async (path: string) => {
+  return await fb.get(fb.ref(db, path));
+}

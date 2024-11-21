@@ -5,7 +5,7 @@
     max-width: 800px;
     margin: 0 auto;
 }
-  
+
 .room-container {
     border: 1px solid #ccc;
     margin: 10px;
@@ -13,13 +13,13 @@
     width: 100%;
     box-sizing: border-box;
 }
-  
+
 .room-title {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
 }
-  
+
 .room-name {
     margin: 0;
     flex-grow: 1;
@@ -48,6 +48,15 @@
 
 .game-room-button {
     margin-left: auto;
+}
+
+.player-color-button {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #ccc;
+    border-radius: 0;
+    margin: 3px;
+    padding: 0;
 }
 
 .player-list {
@@ -81,4 +90,3 @@
 ul {
     margin-left: 20px;
 }
-  
