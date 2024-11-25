@@ -1,13 +1,15 @@
-import { CSSProperties } from 'react';
+import { CSSProperties, useState } from 'react';
 import { home, hotel } from '../../assets/Icons';
 import { Field } from '../models/field';
 import { MonopolyModel } from '../models/game';
 import InfiniteLoopingList from './InfiniteLoopingList';
 
 const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ gameModel, exit }) => {
+    const [selectedField, setSelectedField] = useState(-1);
+
     const genereteButtons = () => {
         const newPrice = (gameModel.auction?.value ?? 0) +
-            Math.max(10, ((gameModel.auction?.value ?? 0) / 100) * 10);
+            Math.max(10, Math.floor(((gameModel.auction?.value ?? 0) / 100)) * 10);
 
         const sisabledStyle: CSSProperties = {
             pointerEvents: 'none',
@@ -32,22 +34,31 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
             const disabled3 = newPrice > gameModel.players[curAuctionPlayer]?.money;
 
             return (<div style={{
-                margin: '0 auto',
-                width: '60%',
+                width: '40vw',
             }}>
                 <div style={{
                     background: 'linear-gradient(180deg, rgba(33, 140, 183, 1) 0%, rgba(33, 139, 183,1) 50%, rgba(33, 149, 183,1) 140%)',
                     boxShadow: '0 0 5px 1px rgba(87, 174, 245, 0.8)',
                     marginBottom: 5,
                     fontSize: 'smaller',
+                    padding: 3,
                 }}>
                     <div style={{ display: 'flex' }}>
-                        <div style={{ fontWeight: 'bold' }}>Do kupienia</div>
-                        <div style={{ marginLeft: 'auto' }}>Cena bazowa</div>
+                        <div>Do kupienia</div>
+                        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>Cena bazowa</div>
                     </div>
                     <div>
-                        <div style={{ display: 'flex' }}>
-                            <div style={{ fontWeight: 'bold' }}>{gameModel.fields[gameModel.players[gameModel.round].position].name}</div>
+                        <div style={{
+                            display: 'flex',
+                            padding: '2px 0',
+                            borderBottom: gameModel.auction ? '1px solid white' : 'none'
+                        }}>
+                            <div style={{
+                                fontWeight: 'bold',
+                                padding: '0 2px',
+                                textShadow: '1px 1px 2px black',
+                                background: gameModel.fields.find(f => f.name == gameModel.fields[gameModel.players[gameModel.round].position].name)?.streetColorRgba,
+                            }}>{gameModel.fields[gameModel.players[gameModel.round].position].name}</div>
                             <div style={{ marginLeft: 'auto' }}>{gameModel.fields[gameModel.players[gameModel.round].position].cost}</div>
                         </div>
 
@@ -66,39 +77,39 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                     </div>
                 </div>
 
-                {
-                    gameModel.auction == null && gameModel.waitingToBuy ? (
-                        <div style={{ display: 'flex' }}>
-                            <button disabled={disabled} style={disabled ? sisabledStyle : {}} onClick={disabled ? () => { } : gameModel.throwOnAuction}>
-                                Wrzuć na licytację
-                            </button>
-                            <button disabled={disabled2} style={{ ...(disabled2 ? sisabledStyle : {}), marginLeft: 'auto' }} onClick={disabled2 ? () => { } : gameModel.buy}>
-                                Kup
-                            </button>
-                        </div>
-                    ) : curAuctionPlayer == gameModel.nick ? (
-                        <div style={{ display: 'flex' }}>
-                            <button onClick={gameModel.pass}>
-                                Pasuj
-                            </button>
-                            <button disabled={disabled3} style={{ ...(disabled3 ? sisabledStyle : {}), marginLeft: 'auto' }} onClick={disabled3 ? () => { } :
-                                gameModel.auction!.players.filter(p => p.isPlaying).length < 2
-                                    ? gameModel.buy
-                                    : () => gameModel.raiceBet(newPrice)
-                            }>
-                                {gameModel.auction!.players.filter(p => p.isPlaying).length < 2
-                                    ? 'Kup'
-                                    : `Licytuj (${newPrice})`
-                                }
-                            </button>
-                        </div>
-                    ) : curAuctionPlayer != '' ? (
-                        <div style={{ textAlign: 'center', background: 'rgba(33, 149, 183,0.4)' }}>
-                            Oczekiwanie na gracza {gameModel.players[curAuctionPlayer].nick}
-                        </div>
-                    ) : null
-                }
-            </div >)
+                {gameModel.auction == null && gameModel.waitingToBuy ? (
+                    <div style={{ display: 'flex' }}>
+                        <button disabled={disabled} style={disabled ? sisabledStyle : {}} onClick={disabled ? () => { } : gameModel.throwOnAuction}>
+                            Wrzuć na licytację
+                        </button>
+                        <button disabled={disabled2} style={{ ...(disabled2 ? sisabledStyle : {}), marginLeft: 'auto' }} onClick={disabled2 ? () => { } : gameModel.buy}>
+                            Kup
+                        </button>
+                    </div>
+                ) : curAuctionPlayer == gameModel.nick ? (
+                    <div style={{ display: 'flex' }}>
+                        <button onClick={gameModel.pass}>Pasuj</button>
+
+                        <button disabled={disabled3} style={{
+                            pointerEvents: disabled3 ? 'none' : 'auto',
+                            marginLeft: 'auto',
+                        }} onClick={disabled3 ? () => { } :
+                            gameModel.auction!.players.filter(p => p.isPlaying).length < 2
+                                ? gameModel.buy
+                                : () => gameModel.raiceBet(newPrice)
+                        }>
+                            {gameModel.auction!.players.filter(p => p.isPlaying).length < 2
+                                ? 'Kup'
+                                : `Licytuj (${newPrice})`
+                            }
+                        </button>
+                    </div>
+                ) : curAuctionPlayer != '' ? (
+                    <div style={{ textAlign: 'center', background: 'rgba(33, 149, 183,0.4)' }}>
+                        Oczekiwanie na gracza {gameModel.players[curAuctionPlayer].nick}
+                    </div>
+                ) : null}
+            </div>)
         } else if (gameModel.round == gameModel.nick) {
             return (<button onClick={() => gameModel.nextRound()}>
                 Zakończ kolejkę
@@ -122,7 +133,11 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
     )
 
     const generateField = (field: Field, index: number) => (
-        <div key={index} style={{
+        <button key={index} style={{
+            textAlign: 'left',
+            width: '100%',
+            borderRadius: 3,
+            cursor: 'default',
             padding: '10px',
             border: '1px solid ' + (field.isOff ? '#844' : '#ccc'),
             marginBottom: '10px',
@@ -131,14 +146,14 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
             background: field.players.includes(gameModel.round)
                 ? 'linear-gradient(180deg, rgba(41,43,153,1) 0%, rgba(0,123,255,0.4) 100%)'
                 : 'rgba(0,123,255,0.1)'
-        }}>
+        }} onClick={() => ['street', 'infrastructure', 'trainStop'].includes(field.type) ? setSelectedField(index % gameModel.fields.length) : null}>
             <div style={{
                 display: 'flex',
                 width: '100%',
             }}>
                 <div style={{
                     boxShadow: field.player != ''
-                        ? '0 0 5px 1px ' + gameModel.players[field.player].colorRgba
+                        ? `0 0 5px 1px ${gameModel.players[field.player].colorRgba}, 0 0 5px 1px black`
                         : '',
                     background: field.streetColorRgba,
                     textShadow: '1px 1px 2px black',
@@ -150,19 +165,38 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                     <h4 style={{ margin: 0, }}>
                         {field.name}
                     </h4>
-                    {field.type == 'start' && gameModel.canTakeStart ? (
-                        <button onClick={gameModel.takeStart} style={{
-                            padding: '0 10px',
-                            background: 'none',
-                            fontWeight: 'bold',
-                        }}>
-                            {field.description}
-                        </button>
-                    ) : (
-                        <span style={{ fontSize: 'smaller' }}>
-                            {field.description}
-                        </span>
-                    )}
+                    {field.type == 'start'
+                        ? !gameModel.canTakeStart
+                            ? (
+                                <span style={{ fontSize: 'smaller' }}>
+                                    Przejście przez start: {field.cost}
+                                </span>
+                            ) : (
+                                <button onClick={gameModel.takeStart} style={{
+                                    padding: '0 10px',
+                                    background: 'none',
+                                    fontWeight: 'bold',
+                                }}>
+                                    {field.description}
+                                </button>
+                            )
+                        : gameModel.canPay != gameModel.nick &&
+                            field.players.includes(gameModel.canPay ?? '') &&
+                            gameModel.myPlayer.inJailFor == 0
+                            ? (
+                                <button onClick={gameModel.demandPayment} style={{
+                                    padding: '0 10px',
+                                    background: 'none',
+                                    fontWeight: 'bold',
+                                }}>
+                                    Żądaj opłaty {gameModel.canPay}
+                                </button>
+                            )
+                            : (
+                                <span style={{ fontSize: 'smaller' }}>
+                                    {field.description}
+                                </span>
+                            )}
 
 
                 </div>
@@ -189,8 +223,8 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                         ? hotel({
                             color: gameModel.players[field.player]?.colorRgba ?? 'white',
                             display: 'flex',
-                            width: '50px',
-                            height: '50px',
+                            width: '40px',
+                            height: '40px',
                         })
                         : Array
                             .from({ length: field.buildingCount }, (_, k) => k + 1)
@@ -204,7 +238,7 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                     }
                 </div>
             )}
-        </div>
+        </button>
     );
 
     const players = () => (
@@ -279,6 +313,7 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                     padding: '0 15px 0 5px',
                     display: 'flex',
                     flexDirection: 'column',
+                    marginBottom: '10px',
                 }}>
                     {...Object.entries(gameModel.history).reverse().map(e => (
                         <div style={{
@@ -308,6 +343,163 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
             </div>
         )
     }
+
+    const selectedFieldCard = () => {
+        const field = gameModel.fields[selectedField];
+
+        const disabledSellHouse = !(field.buildingCount > 0);
+        const disabledBuyHouse = !(field.buildingCount <= 4 && field.isComplit && gameModel.currPlayer.money >= field.buildingCost);
+        const disabledSellField = !(field.buildingCount == 0 || field.type != 'street');
+        const disabledTurnOff = !((field.isOff && gameModel.currPlayer.money >= field.cost / 2)
+            || field.type != 'street' || field.buildingCount == 0);
+
+        const selectedStyle = {
+            textShadow: '1px 1px 2px black',
+            fontWeight: 'bold',
+            color: 'white',
+        }
+
+        return (
+            <div style={{
+                borderRadius: 10,
+                border: `3px solid ${field.isOff ? '#944' : 'rgba(10,23,45,1)'}`,
+                boxShadow: `0 0 5px 3px ${field.isOff ? '#944' : 'rgba(10,23,45,1)'}, 0 0 5px 4px black`,
+                background: 'rgba(40,63,105,1)',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 10,
+            }}>
+                <h3 style={{
+                    margin: ' 0 0 10px 0',
+                    boxShadow: field.player != ''
+                        ? `0 0 5px 1px ${gameModel.players[field.player].colorRgba}, 0 0 5px 1px black`
+                        : '',
+                    background: field.streetColorRgba,
+                    textShadow: '1px 1px 2px black',
+                    padding: '15px',
+                }}>
+                    {field.name}
+                </h3>
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    flex: 1,
+                }}>
+                    <div style={{ fontSize: 'smaller' }}>
+                        <div style={{ display: 'flex' }}>
+                            <div>Kwota zakupu / sprzeaży </div>
+                            <div style={{ marginLeft: 'auto' }}>{field.cost}</div>
+                        </div>
+                        <div style={{ display: 'flex' }}>
+                            <div>Kwota zastawienia / wykupienia </div>
+                            <div style={{ marginLeft: 'auto' }}>{field.cost / 2}</div>
+                        </div>
+                    </div>
+
+                    <div style={{ color: 'gray' }}>
+                        {field.type == 'street' ? (
+                            <>
+                                <div style={{ display: 'flex', ...(!field.isComplit && field.player != '' ? selectedStyle : {}) }}>
+                                    <div>Bez domów</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[0]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.isDoubleRent ? selectedStyle : {}) }}>
+                                    <div>Bez domów (z całą ulicą)</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[0] * 2}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 1 ? selectedStyle : {}) }}>
+                                    <div>1 dom</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[1]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 2 ? selectedStyle : {}) }}>
+                                    <div>2 domy</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[2]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 3 ? selectedStyle : {}) }}>
+                                    <div>3 domy</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[3]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 4 ? selectedStyle : {}) }}>
+                                    <div>4 domy</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[4]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 5 ? selectedStyle : {}) }}>
+                                    <div>Hotel</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[5]}</div>
+                                </div>
+                            </>
+                        ) : field.type == 'infrastructure' ? (
+                            <>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 1 ? selectedStyle : {}) }}>
+                                    <div>Jeden budynek infrastruktury</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[0]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 2 ? selectedStyle : {}) }}>
+                                    <div>Dwa budynki infrastruktury</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[1]}</div>
+                                </div>
+                            </>
+                        ) : field.type == 'trainStop' ? (
+                            <>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 1 ? selectedStyle : {}) }}>
+                                    <div>Jeden przystanek</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[0]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 2 ? selectedStyle : {}) }}>
+                                    <div>Dwa przystanki</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[1]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 3 ? selectedStyle : {}) }}>
+                                    <div>Trzy przystanki</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[2]}</div>
+                                </div>
+                                <div style={{ display: 'flex', ...(field.buildingCount == 4 ? selectedStyle : {}) }}>
+                                    <div>Cztery przystanki</div>
+                                    <div style={{ marginLeft: 'auto' }}>{field.buildingRent[3]}</div>
+                                </div>
+                            </>
+                        ) : null}
+                    </div>
+
+                    {field.type == 'street' ?
+                        <div style={{ display: 'flex', fontSize: 'smaller' }}>
+                            <div>Koszt nowego domu</div>
+                            <div style={{ marginLeft: 'auto' }}>{field.buildingCost}</div>
+                        </div>
+                        : <div />
+                    }
+
+                    {gameModel.round == gameModel.nick && field.player == gameModel.nick ? <div>
+                        {field.type != 'street' ? null :
+                            <div style={{ display: 'flex', marginBottom: 5 }}>
+                                <button disabled={disabledSellHouse} style={{ pointerEvents: disabledSellHouse ? 'none' : 'auto' }}
+                                    onClick={disabledSellHouse ? () => { } : () => gameModel.sellHouse(field)} >Sprzedaj dom</button>
+                                <button disabled={disabledBuyHouse} style={{ marginLeft: 'auto', pointerEvents: disabledBuyHouse ? 'none' : 'auto' }}
+                                    onClick={disabledBuyHouse ? () => { } : () => gameModel.buyHouse(field)}>Postaw dom</button>
+                            </div>
+                        }
+
+                        <div style={{ display: 'flex' }}>
+                            <button disabled={disabledSellField} style={{ pointerEvents: disabledSellField ? 'none' : 'auto' }}
+                                onClick={disabledSellField ? () => { } : () => gameModel.sellField(field)} >Sprzedaj</button>
+                            <button disabled={disabledTurnOff} style={{ marginLeft: 'auto', pointerEvents: disabledTurnOff ? 'none' : 'auto' }}
+                                onClick={disabledSellField ? () => { } : () => gameModel.turnOfField(field)}>{field.isOff ? 'Wykup' : 'Zastaw'}</button>
+                        </div>
+
+
+                    </div> : <>
+                        <div />
+                        <div />
+                        <div />
+                        <div />
+                    </>}
+                </div>
+            </div>
+        )
+    };
 
     return (
         <>
@@ -343,7 +535,34 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                     {observers()}
                     {history()}
                 </div>
+
             </div>
+
+
+            {selectedField >= 0 ? (
+                <>
+                    <button style={{
+                        background: '#44444466',
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        padding: '59px 0 0 0',
+                        alignContent: 'center',
+                        border: 'none',
+                    }} onClick={() => setSelectedField(-1)} />
+
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '50%',
+                        height: '60%',
+                    }}>
+                        {selectedFieldCard()}
+                    </div>
+                </>
+            ) : null}
 
             <div style={{
                 width: '100%',

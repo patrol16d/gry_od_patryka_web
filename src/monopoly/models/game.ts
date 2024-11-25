@@ -262,7 +262,7 @@ export class MonopolyModel {
         this.auction!.players[this.auction!.round].isPlaying = false;
         const playing = this.auction!.players.filter((p) => p.isPlaying);
 
-        historyWriter.add('${this.nick} spasował');
+        historyWriter.add(`${this.nick} spasował`);
         if (playing.length == 0) {
             update = {
                 'gameModel/auction': null,
@@ -360,4 +360,79 @@ export class MonopolyModel {
             'gameModel/canTakeStart': false,
         });
     }
+
+    // ---- field info buttons ----
+
+    public turnOfField = async (field: Field) => {
+        const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+        historyWriter.add(
+            `${this.nick} ${field.isOff ? 'wykupił' : 'zastawił'} \`${field.name}\``,
+        );
+        await historyWriter.commit(field.isOff
+            ? {
+                [`playersModel/players/${this.nick}/money`]: this.myPlayer.money - field.cost / 2,
+                [`gameModel/fields/${this.fields.indexOf(field)}`]: `${this.nick}|0`,
+            }
+            : {
+                [`playersModel/players/${this.nick}/money`]: this.myPlayer.money + field.cost / 2,
+                [`gameModel/fields/${this.fields.indexOf(field)}`]: `${this.nick}|0|1`,
+            });
+    }
+
+    public sellField = async (field: Field) => {
+        const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+        historyWriter.add(`${this.nick} sprzedał \`${field.name}\``);
+        await historyWriter.commit({
+            [`playersModel/players/${this.nick}/money`]: this.myPlayer.money + (field.isOff ? field.cost / 2 : field.cost),
+            [`gameModel/fields/${this.fields.indexOf(field)}`]: '|0',
+        });
+    }
+
+    public sellHouse = async (field: Field) => {
+        const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+
+        const other = this.fields
+            .filter((f) => f.street == field.street && f.name != field.name)
+            .sort((a, b) => b.buildingCount - a.buildingCount);
+
+        if (other[0].buildingCount > field.buildingCount) {
+            field = other[0];
+        }
+
+        historyWriter.add(
+            field.buildingCount == 5
+                ? `${this.nick} sprzedał hotel na \`${field.name}\``
+                : `${this.nick} sprzedał ${field.buildingCount} dom na \`${field.name}\``,
+        );
+
+        await historyWriter.commit({
+            [`playersModel/players/${this.nick}/money`]: this.myPlayer.money + field.buildingCost,
+            [`gameModel/fields/${this.fields.indexOf(field)}`]: `${this.nick}|${field.buildingCount - 1}`,
+        });
+    }
+
+    public buyHouse = async (field: Field) => {
+        const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+
+        const other = this.fields
+            .filter((f) => f.street == field.street && f.name != field.name)
+            .sort((a, b) => a.buildingCount - b.buildingCount);
+
+        if (other[0].buildingCount < field.buildingCount) {
+            field = other[0];
+        }
+
+        if (field.buildingCount == 4) {
+            historyWriter.add(`${this.nick} postawił hotel na \`${field.name}\``);
+        } else {
+            historyWriter.add(
+                `${this.nick} postawił ${field.buildingCount + 1} dom na \`${field.name}\``,
+            );
+        }
+        await historyWriter.commit({
+            [`playersModel/players/${this.nick}/money`]: this.myPlayer.money - field.buildingCost,
+            [`gameModel/fields/${this.fields.indexOf(field)}`]: `${this.nick}|${field.buildingCount + 1}`,
+        });
+    }
+
 }

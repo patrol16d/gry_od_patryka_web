@@ -195,7 +195,6 @@ const InfiniteLoopingList: React.FC<InfiniteLoopingListProps> = ({
                 left: '50%',
                 transform: 'translateX(-50%)',
                 bottom: 30,
-                alignItems: 'center'
             }}>
                 {genereteButtons()}
             </div>
