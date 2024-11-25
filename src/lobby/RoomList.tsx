@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { UserContext } from '../user/UserContext';
 import './RoomList.css';
-import { Players, PlayerData } from './LobbyRTV';
+import { PlayerData, Players } from './LobbyRTV';
 import { playersColors } from '../monopoly/models/player';
 import { set } from '../firebase.ts';
 
@@ -9,17 +9,8 @@ interface RoomListProps {
   roomsList: string[];
   players: Players;
   joinRoom: (room: string) => void;
-  startRoom: (room: string) => void;
-  watchRoom: (gameRoom: string) => void;
-}
-
-const playerColor: (player: PlayerData) => string = (player) => {
-  if (player.room == 'Monopoly') {
-    const color = playersColors[player.monopolyColor ?? 0];
-    return `rgba(${color[1]}, ${color[2]}, ${color[3]}, ${color[0] / 255})`;
-  }
-
-  return 'rgba(0, 0, 0, 0)';
+  startRoom: (room: string, players: Players) => void;
+  watchRoom: (room: string, gameRoom: string) => void;
 }
 
 const togglePlayerColor = (playerName: string, player: PlayerData) => {
@@ -86,7 +77,7 @@ const RoomList: React.FC<RoomListProps> = ({ roomsList, players, joinRoom, start
   };
 
   const roomTitle = (room: string, players: Players) => {
-    const colors = Object.values(players).map(p => playerColor(p));
+    const colors = Object.values(players).map(p => p.colorRgba);
     const distinctColors = (new Set(colors)).size == colors.length;
     return (
       <div className="room-title">
@@ -96,9 +87,15 @@ const RoomList: React.FC<RoomListProps> = ({ roomsList, players, joinRoom, start
           <button className="room-button" onClick={() => joinRoom(room)}>
             Dołącz
           </button>
-        ) : room !== 'Poczekalnia' ? (
-          <button className="room-button" disabled={!distinctColors} onClick={() => startRoom(room)} style={{ pointerEvents: distinctColors ? 'auto' : 'none' }}>
+        ) : ['Monopoly'].includes(room) ? (
+          <button className="room-button" disabled={!distinctColors}
+            onClick={() => startRoom(room, players)}
+            style={{ pointerEvents: distinctColors ? 'auto' : 'none' }}>
             {distinctColors ? 'Rozpocznij' : 'Musicie mieć różne kolory'}
+          </button>
+        ) : !['Poczekalnia', null, '', undefined].includes(room) ? (
+          <button className="room-button" disabled={!distinctColors} style={{ pointerEvents: 'none' }}>
+            Brak wspracia webowego
           </button>
         ) : null}
       </div>
@@ -107,13 +104,21 @@ const RoomList: React.FC<RoomListProps> = ({ roomsList, players, joinRoom, start
 
   const playerList = (players: Players) => (
     <ul className="player-list">
-      {Object.entries(players).map(([name, data]) => (
+      {Object.entries(players).map(([name, data]: [string, PlayerData]) => (
         <li key={name} className="player-item">
-          <button className="player-color-button"
-            style={{ backgroundColor: playerColor(data), pointerEvents: name == userName ? 'auto' : 'none' }}
-            tabIndex={-1}
-            onClick={() => name == userName ? togglePlayerColor(name, data) : null} />
-          <span className={name == userName ? "player-name my-player" : "player-name"}>{name}</span>
+          {name == userName ? (<>
+            <button className="player-color-button" tabIndex={-1} style={{
+              backgroundColor: data.colorRgba,
+              pointerEvents: 'auto'
+            }} onClick={() => togglePlayerColor(name, data)} />
+            <span className={"player-name my-player"}>{name}</span>
+          </>) : (<>
+            <button className="player-color-button" tabIndex={-1} style={{
+              backgroundColor: data.colorRgba,
+              pointerEvents: 'none'
+            }} />
+            <span className={"player-name"}>{name}</span>
+          </>)}
           <span className="player-time">{formatTimeDifference(data.time)}</span>
         </li>
       ))}
@@ -136,8 +141,10 @@ const RoomList: React.FC<RoomListProps> = ({ roomsList, players, joinRoom, start
             {Object.entries(groups).map(([gameRoom, players]) => (
               <div key={gameRoom} className="game-room-container">
                 <h4 className="game-room-title">
-                  <span className="game-room-name">{gameRoom}</span>
-                  <button className="game-room-button" onClick={() => watchRoom(gameRoom)}>Obserwuj</button>
+                  <span className="game-room-name">#{gameRoom}</span>
+                  {['Monopoly'].includes(room)
+                    ? <button className="game-room-button" onClick={() => watchRoom(room, gameRoom)}>Obserwuj</button>
+                    : null}
                 </h4>
                 {playerList(players)}
               </div>

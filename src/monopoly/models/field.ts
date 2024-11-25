@@ -1,8 +1,9 @@
-import { PlayerModel, playersColors } from "./player"
+import { PlayerModel } from "./player"
 
 type FieldType = 'start' | 'street' | 'card' | 'payment' | 'trainStop' | 'jail' | 'infrastructure' | 'parking' | 'goToJail'
 
 export class Field {
+    index: number = 0
     buildingCount: number = 0
     isOff: boolean = false
     player: string = ''
@@ -10,25 +11,45 @@ export class Field {
     isComplit: boolean = false
 
     get streetColor() {
-        const colors: Partial<Record<FieldType, number[]>> = {
-            'street': playersColors[this.street],
+        return {
+            'street': streetColors[this.street] ?? [0, 0, 0, 0],
             'infrastructure': [255, 255, 191, 0],
             'trainStop': [255, 102, 153, 204],
-        };
-        return colors[this.type] ?? [0, 0, 0, 0];
+            'start': [0, 0, 0, 0],
+            'card': [0, 0, 0, 0],
+            'payment': [0, 0, 0, 0],
+            'jail': [0, 0, 0, 0],
+            'parking': [0, 0, 0, 0],
+            'goToJail': [0, 0, 0, 0],
+        }[this.type];
+    };
+
+    get streetColorRgba() {
+        return colorToRgba(this.streetColor.map(c => c * 0.9));
     };
 
     get isDoubleRent() { return this.isComplit && this.buildingCount == 0; }
-    get canBeBought() { return !(this.player) && (this.type in ['street', 'infrastructure', 'trainStop']); }
+    get canBeBought() { return this.player == '' && ['street', 'infrastructure', 'trainStop'].includes(this.type); }
 
-    // const buildings = (color: number[]) => this.type == 'street'
-    //   ? this.buildingCount > 4
-    //     ? [Icon(Icons.home_work, color: color)]
-    //     : List.generate(
-    //       buildingCount,
-    //       (_) => Icon(Icons.home_rounded, color: color),
-    //     )
-    //   : [];
+    get description() {
+        return {
+            'street': this.player
+                ? `Działka ${this.isOff ? 'zastawiona przez' : 'należy do'} ${this.player}`
+                : `Działka do kupienia za ${this.cost}`,
+            'trainStop': this.player
+                ? `Przystanek ${this.isOff ? 'zastawiony przez' : 'należy do'} ${this.player}`
+                : `Przystanek do kupienia za ${this.cost}`,
+            'infrastructure': this.player
+                ? `${this.isOff ? 'Zastawiony przez' : 'Należy do'} do ${this.player}`
+                : `Do kupienia za ${this.cost}`,
+            'start': `Weź za start: ${this.cost}`,
+            'card': 'Dobranie karty',
+            'payment': `Zapłać: ${this.cost}`,
+            'jail': '',
+            'parking': this.buildingCount > 0 ? `Kwota do zebrania: ${this.buildingCount}` : '',
+            'goToJail': 'Nie dostajesz za start',
+        }[this.type];
+    }
 
     constructor(
         public type: FieldType,
@@ -51,7 +72,7 @@ const streetColors = [
     [255, 27, 69, 255],
 ];
 
-export const fieldsTemplate: Field[] = [
+export const fieldsTemplate = () => [
     new Field('start', 'Start', 200),
     new Field('street', 'Ulica Konopnicka', 60, 0, [2, 10, 30, 90, 160, 250], 50),
     new Field('card', 'Kasa społeczna', 0),
@@ -94,8 +115,8 @@ export const fieldsTemplate: Field[] = [
     new Field('street', 'Aleje Ujazdowskie', 400, 7, [50, 200, 600, 1400, 1700, 2000], 200),
 ]
 
-export function parseFieldsFromJson(data: any, playerData: { [name: string]: PlayerModel }): Field[] {
-    const fields: Field[] = fieldsTemplate;
+export function parseFieldsFromJson(data: any, players: { [name: string]: PlayerModel }, playersOrder: string[]): Field[] {
+    const fields: Field[] = fieldsTemplate();
 
     if (!Array.isArray(data) || data.length !== fields.length) {
         return fields;
@@ -103,15 +124,16 @@ export function parseFieldsFromJson(data: any, playerData: { [name: string]: Pla
 
     for (let i = 0; i < fields.length; i++) {
         let f = data[i].split('|');
-        fields[i].player = playerData.hasOwnProperty(f[0]) ? f[0] : '';
+        fields[i].index = i;
+        fields[i].player = players.hasOwnProperty(f[0]) && playersOrder.includes(f[0]) ? f[0] : '';
         fields[i].buildingCount = parseInt(f[1], 10);
         if (f.length > 2) {
             fields[i].isOff = f[2] === '1';
         }
     }
 
-    Object.entries(playerData).forEach(([name, p]) => {
-        fields[p.position].players.push(name);
+    playersOrder.forEach(name => {
+        fields[players[name].position].players.push(name);
     });
 
     for (let i = 0; i < streetColors.length; i++) {
@@ -155,4 +177,8 @@ export function parseFieldsFromJson(data: any, playerData: { [name: string]: Pla
 
 export function parseFieldsToJson(fields: Field[]): any {
     return fields.map(f => `${f.player}|${f.buildingCount}`);
+}
+
+export function colorToRgba(color: number[]) {
+    return `rgba(${color[1]}, ${color[2]}, ${color[3]}, ${1.0 * color[0] / 255})`;
 }

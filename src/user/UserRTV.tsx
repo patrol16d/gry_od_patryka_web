@@ -8,22 +8,27 @@ let updateMyTimeRunning = false;
 
 const UserRTV: React.FC = () => {
   const { userName } = useContext(UserContext);
-  const [gameRoom, setGameRoom] = useState(null);
+  const [gameRoom, setGameRoom] = useState('');
   const [gameName, setGameName] = useState(null);
 
   const updateMyTime = (init: boolean = false) => {
     if (init && updateMyTimeRunning) return;
+    // console.info('updateMyTime');
     updateMyTimeRunning = true;
-    set(`/lobby/players/${userName}/time`, Date.now());
-    setTimeout(updateMyTime, 5000);
+    if (!document.hidden) set(`/lobby/players/${userName}/time`, Date.now());
+    // setTimeout(updateMyTime, 5000);
   }
 
+  // console.info('UserRTV', gameRoom);
+
   useEffect(() => {
+    // console.info('UserRTV useEffect', gameRoom);
     const unsubscribe = onValue(`/lobby/players/${userName}/gameRoom`, (snapshot) => {
-      const data = snapshot.val();
-      if (gameRoom != data) {
-        setGameRoom(data);
-        if (data !== null) {
+      // console.info('UserRTV useEffect /lobby/players/${userName}/gameRoom = ', gameRoom);
+      const data = `${snapshot.val() ?? ''}`;
+      // console.info('UserRTV useEffect /lobby/players/${userName}/gameRoom = ', gameRoom, data);
+      if (gameRoom !== data) {
+        if (data !== '') {
           get(`/games/rooms/${data}/name`).then(async value => {
             const name = value.val();
             setGameName(name);
@@ -35,6 +40,7 @@ const UserRTV: React.FC = () => {
             }
           })
         }
+        setGameRoom(data);
       }
     });
 
@@ -43,9 +49,9 @@ const UserRTV: React.FC = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [gameRoom]);
 
-  if (gameRoom == null) return (<LobbyRTV />);
+  if (gameRoom == '') return (<LobbyRTV />);
 
   if (gameName == null) return (<>Ładowanie...</>);
 

@@ -1,4 +1,3 @@
-import './App.css'
 import UserRTV from './user/UserRTV.tsx';
 import UserNameGate from './user/UserNameGate.tsx';
 

@@ -1,3 +1,5 @@
+import { colorToRgba } from "./field";
+
 export const playersColors = [
     [255, 255, 255, 0],
     [255, 255, 0, 0],
@@ -10,6 +12,10 @@ export const playersColors = [
 export class PlayerModel {
     get color() { return playersColors[this.colorIndex] };
 
+    get colorRgba() { return colorToRgba(this.color) };
+
+    get colorRgba2() { return colorToRgba(this.color.map(c => c * 0.8)) };
+
     constructor(
         public nick: string,
         public position: number,
@@ -17,6 +23,4 @@ export class PlayerModel {
         public money: number,
         public inJailFor: number,
     ) { };
-
-
 }

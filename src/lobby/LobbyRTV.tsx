@@ -3,21 +3,44 @@ import { useEffect, useState, useContext } from 'react';
 import { UserContext } from '../user/UserContext.tsx';
 import { set, update, onValue } from '../firebase.ts';
 import RoomList from './RoomList.tsx';
-import { fieldsTemplate, parseFieldsToJson } from '../monopoly/models/field.ts';
+import { colorToRgba, fieldsTemplate, parseFieldsToJson } from '../monopoly/models/field.ts';
 import { playersColors } from '../monopoly/models/player.ts';
 
-export interface PlayerData {
-  monopolyColor?: number;
-  cluedoColor?: number;
-  color?: number;
-  room: string;
-  time?: number;
-  version?: string;
-  gameRoom?: string;
+export class PlayerData {
+  private constructor(
+    public room: string = 'Poczekalnia',
+    public monopolyColor: number,
+    public cluedoColor: number,
+    public color: number,
+    public time: number,
+    public version: string,
+    public gameRoom: string | null,
+  ) { }
+
+  static fromJson = (data: { [key: string]: any }) => {
+    return new PlayerData(
+      data['room'] || 'Poczekalnia',
+      data['monopolyColor'] || 0,
+      data['cluedoColor'] || 0,
+      data['color'] || 0,
+      data['time'] || 0,
+      data['version'] || '',
+      data['gameRoom'] || null,
+    );
+  }
+
+  get colorRgba() {
+    if (this.room == 'Monopoly') {
+      const color = playersColors[this.monopolyColor ?? 0];
+      return colorToRgba(color);
+    }
+
+    return colorToRgba([0, 0, 0, 0])
+  }
 }
 
 export interface Players {
-  [userName: string]: PlayerData;
+  [name: string]: PlayerData
 }
 
 
@@ -42,17 +65,12 @@ const LobbyRTV: React.FC = () => {
     set(`/lobby/players/${userName}/room`, room);
   }
 
-  const startRoom = (room: string) => {
+  const startRoom = (room: string, players: Players) => {
     const gameRoomKey = `${Date.now()}`;
     const updateMap: { [key: string]: string } = {};
-    const players: Players = {};
-
-    Object.keys(value['players'])
-      .filter(p => value['players'][p]['room'] == room && value['players'][p]['gameRoom'] == null)
-      .forEach(p => {
-        players[p] = value['players'][p];
-        updateMap[`/lobby/players/${p}/gameRoom`] = gameRoomKey;
-      });
+    Object.keys(players).forEach(p => {
+      updateMap[`/lobby/players/${p}/gameRoom`] = gameRoomKey;
+    });
     updateMap[`games/rooms/${gameRoomKey}/name`] = room;
 
     const settings = value['rooms'][room];
@@ -60,13 +78,22 @@ const LobbyRTV: React.FC = () => {
     if (room == 'Monopoly') startMonopoly(gameRoomKey, settings, updateMap, players);
   }
 
-  const watchRoom = (gameRoom: string) => {
-    set(`/lobby/players/${userName}/gameRoom`, gameRoom);
+  const watchRoom = (room: string, gameRoom: string) => {
+    update('/', {
+      [`/lobby/players/${userName}/room`]: room,
+      [`/lobby/players/${userName}/gameRoom`]: gameRoom,
+      [`/games/rooms/${gameRoom}/playersModel/observers/${userName}`]: 1
+    });
   }
 
   return (
     <RoomList roomsList={Object.keys(value['rooms'])}
-      players={value['players']}
+      players={
+        Object.entries(value['players']).reduce((map: Players, [name, player]) => {
+          map[name] = PlayerData.fromJson(player as { [key: string]: any });
+          return map
+        }, {})
+      }
       joinRoom={joinRoom}
       startRoom={startRoom}
       watchRoom={watchRoom}
@@ -84,7 +111,7 @@ function startMonopoly(gameRoomKey: string, settings: { robots: number }, update
     colors.splice(colors.indexOf(color), 1);
     map[obj] = {
       'color': color,
-      'posiotion': 0,
+      'position': 0,
       'money': 1500,
     };
     return map;
@@ -93,14 +120,14 @@ function startMonopoly(gameRoomKey: string, settings: { robots: number }, update
   if (settings.robots == 1) {
     playersMap['Robot'] = {
       'color': colors.pop()!,
-      'posiotion': 0,
+      'position': 0,
       'money': 1500,
     };
   } else {
     for (let i = 0; i < settings.robots; i++) {
       playersMap[`Robot ${i}`] = {
         'color': colors.pop()!,
-        'posiotion': 0,
+        'position': 0,
         'money': 1500,
       };
     }
@@ -114,7 +141,7 @@ function startMonopoly(gameRoomKey: string, settings: { robots: number }, update
   updateMap[`games/rooms/${gameRoomKey}/gameModel/cardsRandomSeed`] = Math.floor(Math.random() * 1000000);
   updateMap[`games/rooms/${gameRoomKey}/gameModel/waitingToThrow`] = true;
   updateMap[`games/rooms/${gameRoomKey}/gameModel/fields`] =
-    parseFieldsToJson(fieldsTemplate);
+    parseFieldsToJson(fieldsTemplate());
   updateMap[`games/rooms/${gameRoomKey}/playersModel/players`] = playersMap;
   updateMap[`games/rooms/${gameRoomKey}/playersModel/playersOrder`] = playersOrder;
   updateMap[`games/rooms/${gameRoomKey}/playersModel/round`] =

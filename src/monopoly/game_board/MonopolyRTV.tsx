@@ -1,69 +1,44 @@
 import { useEffect, useContext, useState } from 'react';
 import { UserContext } from '../../user/UserContext';
-import { onValue } from '../../firebase';
+import { onValue, update } from '../../firebase';
 import { MonopolyModel } from '../models/game';
-import { parseFieldsFromJson } from '../models/field';
-import { PlayerModel } from '../models/player';
+import GameBoard from './GameBoard';
 
-interface MonopolyRTVProps {
-    gameRoom: string;
-}
 
-interface PlayersModel {
-    round: string;
-    players: { [name: string]: PlayerModel };
-    playersOrder: string[],
-    observers: string[],
-}
-
-const MonopolyRTV: React.FC<MonopolyRTVProps> = ({ gameRoom }: { gameRoom: string }) => {
+const MonopolyRTV: React.FC<{ gameRoom: string }> = ({ gameRoom }) => {
     const { userName } = useContext(UserContext);
     const [gameModel, setGameModel] = useState<MonopolyModel | null>(null);
+
+    const exit = () => {
+        const updateMap: { [key: string]: any } = {
+            [`/lobby/players/${userName}/gameRoom`]: null,
+
+        };
+
+        if (gameModel!.playersOrder.includes(userName!)) {
+            const newOrder = gameModel!.playersOrder.filter(p => p != userName);
+            if (newOrder.length > 0) {
+                updateMap[`/games/rooms/${gameRoom}/playersModel/playersOrder/`] = newOrder;
+            }
+            else {
+                updateMap[`/games/rooms/${gameRoom}`] = null;
+            }
+        } else {
+            updateMap[`/games/rooms/${gameRoom}/playersModel/observers/${userName}`] = null;
+        }
+
+        update('/', updateMap);
+    }
 
     useEffect(() => {
         const unsubscribe = onValue(`/games/rooms/${gameRoom}`, (snapshot) => {
             const data = snapshot.val();
             if (data == null) {
+                // console.log('data == null');
                 setGameModel(data);
             } else {
-                const playersModel: PlayersModel = {
-                    players: Object.entries(data['playersModel']['players'] as { [key: string]: { [key: string]: any } })
-                        .reduce((map: { [name: string]: PlayerModel }, [name, player]) => {
-                            map[name] = new PlayerModel(
-                                name,
-                                player['position'] ?? 0,
-                                player['colorIndex'] ?? 0,
-                                player['money'] ?? 0,
-                                player['inJailFor'] ?? 0,
-                            );
-                            return map;
-                        }, {}),
-                    playersOrder: data['playersModel']['playersOrder'],
-                    round: data['playersModel']['round'],
-                    observers: Object.keys(data['playersModel']['observers'] ?? {}),
-                }
-                const gameModel = data['gameModel'];
-
-                console.debug(playersModel);
-
-                setGameModel(new MonopolyModel(
-                    playersModel.players,
-                    playersModel.playersOrder,
-                    playersModel.observers,
-                    playersModel.round,
-                    parseFieldsFromJson(gameModel['fields'], playersModel.players),
-                    gameModel['waitingToThrow'],
-                    gameModel['canTakeStart'],
-                    gameModel['haveToPay'] ?? {},
-                    gameModel['waitingToBuy'],
-                    gameModel['cardsRandomSeed'],
-                    gameModel['chanceCardsIndex'],
-                    gameModel['socialFundCardsIndex'],
-                    gameModel['canPay'] ?? null,
-                    gameModel['auction'] ?? null,
-                ));
+                setGameModel(MonopolyModel.fromJson(data, gameRoom, userName!));
             }
-
         });
         return () => {
             unsubscribe();
@@ -71,12 +46,12 @@ const MonopolyRTV: React.FC<MonopolyRTVProps> = ({ gameRoom }: { gameRoom: strin
     }, []);
 
     if (gameModel == null) return (<>Ładowanie...</>);
-
+    // console.log(gameModel);
     return (
-        <>
-            {userName}
-            <pre style={{ textAlign: 'left' }}> {JSON.stringify(gameModel, null, '\t')} </pre>
-        </>
+        <GameBoard gameModel={gameModel} exit={exit} />
+        // <>
+        //     <pre style={{ textAlign: 'left' }}> {JSON.stringify(gameModel, null, '\t')} </pre>
+        // </>
     );
 };
 
