@@ -3,6 +3,7 @@ import { shuffleWithSeed, chanceCards, socialFundCards } from "./card";
 import { Field, parseFieldsFromJson } from "./field";
 import { HistoryWriter } from "./historyWriter";
 import { PlayerModel } from "./player"
+import { Trade } from "./trade";
 
 export class MonopolyModel {
     private constructor(
@@ -23,6 +24,7 @@ export class MonopolyModel {
         public canPay: string | null,
         public auction: AuctionModel | null,
         public history: { [key: string]: string },
+        public trades: { [key: string]: Trade },
     ) { }
 
     public get myPlayer() { return this.players[this.nick]; }
@@ -62,6 +64,11 @@ export class MonopolyModel {
             data['gameModel']['canPay'] ?? null,
             AuctionModel.fromJson(data['gameModel']['auction'] ?? null),
             data['history'] ?? {},
+            Object.entries(data['trades'] ?? {}).reduce((map: { [key: string]: Trade }, [key, val]) => {
+                const trade = Trade.fromJson(key, val as { [key: string]: any }, userName);
+                if (trade != null) map[key] = trade;
+                return map;
+            }, {})
         );
     }
 
@@ -435,4 +442,50 @@ export class MonopolyModel {
         });
     }
 
+    // ---- trade info buttons ----
+
+    public postTrade = async (trade: Trade) => {
+        const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+        historyWriter.add(`${this.nick} stworzył nową ofertę dla ${trade.oponent}`);
+        await historyWriter.commit({
+            [`gameModel/trades/${historyWriter.key}`]: trade.toJson(this.nick),
+        });
+    }
+
+    public updateTrade = async (trade: Trade) => {
+        if (trade.accepted && trade.oponentAccepted) {
+            const historyWriter = new HistoryWriter(this.nick, this.gameRoom);
+            const myF =
+                trade.myFields.map((f) => `\`${this.fields[f].name}\``).join(', ');
+            const oponentF =
+                trade.oponentFields.map((f) => `\`${this.fields[f].name}\``).join(', ');
+
+            historyWriter.add(`${this.nick} zatwierdził wymianę ${myF} za ${oponentF} i ${trade.money}`);
+            const updateMap: { [key: string]: any } = {
+                [`gameModel/trades/${trade.key}`]: null,
+                [`playersModel/players/${this.nick}/money`]: this.myPlayer.money - trade.money,
+                [`playersModel/players/${trade.oponent}/money`]:
+                    this.players[trade.oponent]!.money + trade.money,
+            }
+            trade.myFields.forEach(f => {
+                updateMap[`gameModel/fields/${f}`] = `${trade.oponent}|${this.fields[f].buildingCount}`;
+            })
+            trade.oponentFields.forEach(f => {
+                updateMap[`gameModel/fields/${f}`] = `${this.nick}|${this.fields[f].buildingCount}`;
+            })
+
+            await historyWriter.commit(updateMap);
+        } else {
+            trade.oponentAccepted = false;
+            await new HistoryWriter(this.nick, this.gameRoom).commit({
+                [`gameModel/trades/${trade.key}`]: trade.toJson(this.nick),
+            });
+        }
+    }
+
+    public deleteTrade = async (trade: Trade) => {
+        await new HistoryWriter(this.nick, this.gameRoom).commit({
+            [`gameModel/trades/${trade.key}`]: null,
+        });
+    }
 }

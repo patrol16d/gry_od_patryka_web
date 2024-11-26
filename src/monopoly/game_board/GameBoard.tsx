@@ -3,9 +3,14 @@ import { home, hotel } from '../../assets/Icons';
 import { Field } from '../models/field';
 import { MonopolyModel } from '../models/game';
 import InfiniteLoopingList from './InfiniteLoopingList';
+import TradeCard from './TradeCard';
+import { Trade } from '../models/trade';
 
 const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ gameModel, exit }) => {
     const [selectedField, setSelectedField] = useState(-1);
+    const [isHistoryTab, setIsHistoryTab] = useState(true);
+    const [showTrade, setShowTrade] = useState(false);
+    const [tradeId, setTradeId] = useState<string | null>(null);
 
     const genereteButtons = () => {
         const newPrice = (gameModel.auction?.value ?? 0) +
@@ -111,9 +116,7 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                 ) : null}
             </div>)
         } else if (gameModel.round == gameModel.nick) {
-            return (<button onClick={() => gameModel.nextRound()}>
-                Zakończ kolejkę
-            </button>)
+            return (<button onClick={() => gameModel.nextRound()}>Zakończ kolejkę</button>)
         }
     };
 
@@ -299,50 +302,51 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
     );
 
     const history = () => {
-        return (
-            <div style={{
-                flex: 1,
+        return Object.entries(gameModel.history).reverse().map(e => (
+            <div key={e[0]} style={{
+                margin: '3px 0px',
+                borderRadius: 6,
+                background: `linear-gradient(180deg, ${gameModel.players[e[1].split('|')[0]]?.colorRgba2 ?? '#557ba7'} 0%, rgba(0,0,0,0) 200%)`,
                 display: 'flex',
                 flexDirection: 'column',
-                minHeight: 0,
+                padding: '0 3px'
             }}>
-                <h4 style={{ margin: '0 5px' }}>Historia</h4>
+                <div>{e[1].split('|')[1].split('`').map((val, index) => (
+                    <span key={index} style={{
+                        display: (index % 2) ? 'inline-block' : '',
+                        background: (index % 2)
+                            ? gameModel.fields.find(f => f.name == val)?.streetColorRgba
+                            : '',
+                        boxShadow: (index % 2) ? '0 0 5px 1px black' : '',
+                    }}>{val}</span>
+                ))}</div>
                 <div style={{
-                    overflow: 'auto',
-                    flex: 1,
-                    padding: '0 15px 0 5px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    marginBottom: '10px',
-                }}>
-                    {...Object.entries(gameModel.history).reverse().map(e => (
-                        <div style={{
-                            margin: '3px 0px',
-                            borderRadius: 6,
-                            background: `linear-gradient(180deg, ${gameModel.players[e[1].split('|')[0]]?.colorRgba2 ?? '#557ba7'} 0%, rgba(0,0,0,0) 200%)`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            padding: '0 3px'
-                        }}>
-                            <div>{e[1].split('|')[1].split('`').map((val, index) => (
-                                <span key={index} style={{
-                                    display: (index % 2) ? 'inline-block' : '',
-                                    background: (index % 2)
-                                        ? gameModel.fields.find(f => f.name == val)?.streetColorRgba
-                                        : '',
-                                    boxShadow: (index % 2) ? '0 0 5px 1px black' : '',
-                                }}>{val}</span>
-                            ))}</div>
-                            <div style={{
-                                marginLeft: 'auto',
-                                fontSize: 'smaller',
-                            }}>{new Date(parseInt(e[0].split('-')[0]) + 3600000).toISOString().split('.')[0].split('T').reverse().join(' ')}</div>
-                        </div>
-                    ))}
-                </div>
+                    marginLeft: 'auto',
+                    fontSize: 'smaller',
+                }}>{new Date(parseInt(e[0].split('-')[0]) + 3600000).toISOString().split('.')[0].split('T').reverse().join(' ')}</div>
             </div>
-        )
+        ));
     }
+
+    const trades = () => {
+        return (<>
+            <button onClick={() => { setTradeId(null); setShowTrade(true); }} style={{ margin: '5px 0' }}>
+                Dodaj nową
+            </button>
+            {Object.entries(gameModel.trades).map(t => (
+                <button key={t[0]} onClick={() => { setTradeId(t[0]); setShowTrade(true); }} style={{
+                    margin: '5px', display: 'flex',
+                    justifyContent: 'space-between',
+                }}>
+                    <div>
+                        <div>{t[1].oponent}</div>
+                        <div>{t[0].substring(0, t[0].lastIndexOf(':'))}</div>
+                    </div>
+                    <div>{t[1].oponentAccepted ? 'OK' : null}</div>
+                </button>
+            ))}
+        </>)
+    };
 
     const selectedFieldCard = () => {
         const field = gameModel.fields[selectedField];
@@ -533,36 +537,103 @@ const GameBoard: React.FC<{ gameModel: MonopolyModel, exit: () => void }> = ({ g
                 }}>
                     {players()}
                     {observers()}
-                    {history()}
+
+                    <div style={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 0,
+                        paddingTop: 5
+                    }}>
+
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                        }}>
+                            <button onClick={() => setIsHistoryTab(true)} style={{
+                                borderRadius: 0,
+                                marginLeft: '5px',
+                                padding: '0 5px',
+                                background: isHistoryTab ? '#333' : ''
+                            }}>Historia</button>
+                            <button onClick={() => setIsHistoryTab(false)} style={{
+                                borderRadius: 0,
+                                padding: '0 5px',
+                                textAlign: 'right',
+                                background: isHistoryTab ? '' : '#333'
+                            }}>Oferty wymiany</button>
+                        </div>
+
+
+                        <div style={{
+                            overflow: 'auto',
+                            flex: 1,
+                            padding: '0 15px 0 5px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            marginBottom: '10px',
+                            background: '#333',
+                            marginLeft: 5,
+                        }}>
+                            {isHistoryTab ? history() : trades()}
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
 
-            {selectedField >= 0 ? (
-                <>
-                    <button style={{
-                        background: '#44444466',
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        padding: '59px 0 0 0',
-                        alignContent: 'center',
-                        border: 'none',
-                    }} onClick={() => setSelectedField(-1)} />
+            {selectedField >= 0 ? <>
+                <button style={{
+                    background: '#44444466',
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    padding: '59px 0 0 0',
+                    alignContent: 'center',
+                    border: 'none',
+                }} onClick={() => setSelectedField(-1)} />
 
-                    <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '50%',
-                        height: '60%',
-                    }}>
-                        {selectedFieldCard()}
-                    </div>
-                </>
-            ) : null}
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '50%',
+                    height: '60%',
+                    maxWidth: 400,
+                }}>
+                    {selectedFieldCard()}
+                </div>
+            </> : null}
+
+            {showTrade ? <>
+                <button style={{
+                    background: '#44444466',
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    padding: '59px 0 0 0',
+                    alignContent: 'center',
+                    border: 'none',
+                }} onClick={() => setShowTrade(false)} />
+
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '50%',
+                    height: '60%',
+                    maxWidth: 400,
+                }}>
+                    <TradeCard
+                        gameModel={gameModel}
+                        isNew={tradeId == null}
+                        trade={tradeId != null ? gameModel.trades[tradeId] : Trade.basic()}
+                        turnOffAction={() => setShowTrade(false)} />
+                </div>
+            </> : null}
 
             <div style={{
                 width: '100%',
